@@ -1,0 +1,28 @@
+# ==============================================================================
+# SmartChain AI Backend Dependencies
+# ==============================================================================
+
+# API framework and server
+fastapi
+uvicorn
+
+# Database ORM and PostgreSQL driver
+sqlalchemy
+psycopg2-binary
+
+# Data processing, analytics, and scientific computing
+pandas
+numpy
+
+# Machine learning and data modeling
+scikit-learn
+joblib
+
+# Network optimization and routing algorithms
+networkx
+
+# Configuration management (environment variables)
+python-dotenv
+
+# Data validation and settings management using python type annotations
+pydantic
