@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import api from '../services/api'
 import StatCard from '../components/StatCard'
+import LiveMap from '../map/LiveMap'
 
 // ------------------------------------------------------------------------------
 // DASHBOARD PAGE COMPONENT
@@ -86,14 +87,7 @@ function Dashboard() {
 
       {/* Main Grid: Map and Chart Placeholders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Interactive Map Visual Mock */}
-        <div className="bg-gray-850 border border-gray-800 rounded-lg p-8 flex flex-col items-center justify-center text-center min-h-[350px] shadow-sm">
-          <span className="text-5xl mb-4" role="img" aria-label="map">🗺️</span>
-          <h2 className="text-lg font-bold text-white">Map Coming in Next Step</h2>
-          <p className="text-gray-400 text-sm max-w-xs mt-2">
-            Dynamic Leaflet mapping representing global transit paths, warehouses, and vehicle trackers.
-          </p>
-        </div>
+        {/* Live Leaflet Map */}<LiveMap shipments={shipments} />
 
         {/* Recharts Analytics Mock */}
         <div className="bg-gray-850 border border-gray-800 rounded-lg p-8 flex flex-col items-center justify-center text-center min-h-[350px] shadow-sm">
@@ -109,3 +103,5 @@ function Dashboard() {
 }
 
 export default Dashboard
+
+
