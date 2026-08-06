@@ -44,7 +44,7 @@ function LiveMap({ shipments = [] }) {
           `)
       })
 
-    return () => {}
+    return () => { }
   }, [shipments])
 
   return (

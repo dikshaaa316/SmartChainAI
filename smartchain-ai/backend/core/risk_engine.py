@@ -1,11 +1,20 @@
-# ------------------------------------------------------------------------------
-# RISK EVALUATION ENGINE
-# ------------------------------------------------------------------------------
-# This module calculates risk scores and delay probabilities using the trained
-# machine learning models. It evaluates the impact of weather and environmental variables
-# on active routes.
+class RiskEngine:
+    @staticmethod
+    def calculate_risk(weather_score, traffic_score, warehouse_score):
+        return (weather_score * 0.3) + (traffic_score * 0.4) + (warehouse_score * 0.3)
 
-# Example placeholder function:
-# def calculate_shipment_risk(shipment_data: dict, model_path: str) -> float:
-#     # Load model, run prediction, and return a risk index between 0.0 and 1.0
-#     pass
+    @staticmethod
+    def get_risk_level(risk_score):
+        if risk_score < 40:
+            return "Low"
+        elif risk_score <= 70:
+            return "Medium"
+        return "High"
+
+    @staticmethod
+    def get_risk_color(risk_score):
+        if risk_score < 40:
+            return "green"
+        elif risk_score <= 70:
+            return "yellow"
+        return "red"

@@ -1,37 +1,53 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.shipments import router as shipments_router
+from routers.analytics import router as analytics_router
+import joblib
+import os
 
 # ------------------------------------------------------------------------------
 # FASTAPI APPLICATION SETUP
 # ------------------------------------------------------------------------------
-# Instantiating the core FastAPI application.
 app = FastAPI(title="SmartChain AI")
 
-# Include the shipments router
-app.include_router(shipments_router)
+# ------------------------------------------------------------------------------
+# LOAD ML MODEL ON STARTUP
+# ------------------------------------------------------------------------------
+@app.on_event("startup")
+def load_model():
+    model_path = "ml_engine/delay_model.pkl"
+    if os.path.exists(model_path):
+        app.state.model = joblib.load(model_path)
+        print("ML model loaded successfully")
+    else:
+        app.state.model = None
+        print("WARNING: ML model not found. Run train_model.py first.")
 
 # ------------------------------------------------------------------------------
-# CORS (Cross-Origin Resource Sharing) MIDDLEWARE
+# CORS MIDDLEWARE
 # ------------------------------------------------------------------------------
-# CORS middleware is configured to authorize frontend client connections.
-# In this setup, we permit requests from our local frontend development server.
 origins = [
     "http://localhost:5173",
+    "http://localhost:5174",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allow all HTTP headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ------------------------------------------------------------------------------
-# ROUTING & ENDPOINTS
+# REGISTER ROUTERS
 # ------------------------------------------------------------------------------
-# Default root route to check the status of the SmartChain AI backend.
+app.include_router(shipments_router)
+app.include_router(analytics_router)
+
+# ------------------------------------------------------------------------------
+# ROOT ENDPOINT
+# ------------------------------------------------------------------------------
 @app.get("/")
 def read_root():
     return {"message": "SmartChain AI is running"}
