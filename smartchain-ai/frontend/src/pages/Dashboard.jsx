@@ -14,19 +14,32 @@ import LiveMap from '../map/LiveMap'
 // - Aggregate delay risk probability percentage
 function Dashboard() {
   const [shipments, setShipments] = useState([])
+  const [regions, setRegions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Fetch all shipments from the backend API on component mount
+  // Fetch all shipments and regions from the backend API on component mount
   useEffect(() => {
     const fetchDashboardMetrics = async () => {
       try {
         setLoading(true)
-        const response = await api.get('/shipments/')
-        setShipments(response.data)
+        const shipmentsResponse = await api.get('/shipments/')
+        setShipments(shipmentsResponse.data)
+
+        // Fetch regions
+        let regionsResponse = await api.get('/analytics/regions/')
+        if (regionsResponse.data.length === 0) {
+          try {
+            await api.post('/analytics/regions/seed')
+            regionsResponse = await api.get('/analytics/regions/')
+          } catch (seedErr) {
+            console.error("Failed to seed regions, proceeding with empty list:", seedErr)
+          }
+        }
+        setRegions(regionsResponse.data)
         setError(null)
       } catch (err) {
-        console.error("Dashboard failed to retrieve shipment metrics:", err)
+        console.error("Dashboard failed to retrieve metrics:", err)
         setError("Error loading metrics dashboard. Check backend availability.")
       } finally {
         setLoading(false)
@@ -87,7 +100,8 @@ function Dashboard() {
 
       {/* Main Grid: Map and Chart Placeholders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Live Leaflet Map */}<LiveMap shipments={shipments} />
+        {/* Live Leaflet Map */}
+        <LiveMap shipments={shipments} regions={regions} />
 
         {/* Recharts Analytics Mock */}
         <div className="bg-gray-850 border border-gray-800 rounded-lg p-8 flex flex-col items-center justify-center text-center min-h-[350px] shadow-sm">
