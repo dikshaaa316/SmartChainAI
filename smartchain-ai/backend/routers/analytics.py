@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Region
-from schemas import RegionCreate, RegionResponse
+from models import Region, Warehouse, Alert, Shipment
+from schemas import RegionCreate, RegionResponse, WarehouseCreate, WarehouseResponse, AlertResponse
 from core.risk_engine import RiskEngine
 from typing import List
 import joblib
@@ -86,3 +86,124 @@ def seed_regions(db: Session = Depends(get_db)):
             added.append(r["region_name"])
     db.commit()
     return {"message": f"Seeded {len(added)} regions", "regions": added}
+
+# ------------------------------------
+# WAREHOUSE ENDPOINTS
+# ------------------------------------
+
+@router.post("/warehouses/", response_model=WarehouseResponse)
+def create_warehouse(warehouse: WarehouseCreate, db: Session = Depends(get_db)):
+    """
+    Create a new warehouse, calculate utilization, and create a high severity alert
+    if utilization exceeds 90%.
+    """
+    utilization = (warehouse.current_load / warehouse.capacity) * 100 if warehouse.capacity > 0 else 0.0
+    db_warehouse = Warehouse(
+        warehouse_name=warehouse.warehouse_name,
+        capacity=warehouse.capacity,
+        current_load=warehouse.current_load,
+        utilization=utilization
+    )
+    db.add(db_warehouse)
+    db.commit()
+    db.refresh(db_warehouse)
+
+    # Generate high severity alert if utilization exceeds 90%
+    if utilization > 90:
+        shipment = db.query(Shipment).first()
+        if not shipment:
+            shipment = Shipment(
+                source="System",
+                destination="System",
+                current_lat=0.0,
+                current_lng=0.0,
+                status="Pending",
+                distance=0.0,
+                eta="N/A",
+                delay_probability=0.0
+            )
+            db.add(shipment)
+            db.commit()
+            db.refresh(shipment)
+
+        alert = Alert(
+            shipment_id=shipment.id,
+            message=f"Warehouse {db_warehouse.warehouse_name} is at {utilization}% capacity",
+            severity="High"
+        )
+        db.add(alert)
+        db.commit()
+
+    return db_warehouse
+
+
+@router.get("/warehouses/", response_model=List[WarehouseResponse])
+def get_warehouses(db: Session = Depends(get_db)):
+    """
+    Get list of all warehouses.
+    """
+    return db.query(Warehouse).all()
+
+
+@router.post("/warehouses/seed")
+def seed_warehouses(db: Session = Depends(get_db)):
+    """
+    Seed the 4 default hubs if they don't already exist.
+    """
+    warehouses_data = [
+        {"warehouse_name": "Mumbai Hub", "capacity": 1000, "current_load": 920},
+        {"warehouse_name": "Delhi Hub", "capacity": 800, "current_load": 650},
+        {"warehouse_name": "Chennai Hub", "capacity": 600, "current_load": 580},
+        {"warehouse_name": "Kolkata Hub", "capacity": 750, "current_load": 400},
+    ]
+    added = []
+    for w in warehouses_data:
+        exists = db.query(Warehouse).filter(Warehouse.warehouse_name == w["warehouse_name"]).first()
+        if not exists:
+            utilization = (w["current_load"] / w["capacity"]) * 100 if w["capacity"] > 0 else 0.0
+            db_warehouse = Warehouse(
+                warehouse_name=w["warehouse_name"],
+                capacity=w["capacity"],
+                current_load=w["current_load"],
+                utilization=utilization
+            )
+            db.add(db_warehouse)
+            db.commit()
+            db.refresh(db_warehouse)
+
+            # If utilization > 90, create warning alert
+            if utilization > 90:
+                shipment = db.query(Shipment).first()
+                if not shipment:
+                    shipment = Shipment(
+                        source="System",
+                        destination="System",
+                        current_lat=0.0,
+                        current_lng=0.0,
+                        status="Pending",
+                        distance=0.0,
+                        eta="N/A",
+                        delay_probability=0.0
+                    )
+                    db.add(shipment)
+                    db.commit()
+                    db.refresh(shipment)
+
+                alert = Alert(
+                    shipment_id=shipment.id,
+                    message=f"Warehouse {db_warehouse.warehouse_name} is at {utilization}% capacity",
+                    severity="High"
+                )
+                db.add(alert)
+                db.commit()
+            added.append(w["warehouse_name"])
+
+    return {"message": f"Seeded {len(added)} warehouses", "warehouses": added}
+
+
+@router.get("/alerts/", response_model=List[AlertResponse])
+def get_alerts(db: Session = Depends(get_db)):
+    """
+    Get list of all alerts.
+    """
+    return db.query(Alert).all()

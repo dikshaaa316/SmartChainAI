@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import api from '../services/api'
 import StatCard from '../components/StatCard'
 import LiveMap from '../map/LiveMap'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts'
 
 // ------------------------------------------------------------------------------
 // DASHBOARD PAGE COMPONENT
@@ -15,6 +16,7 @@ import LiveMap from '../map/LiveMap'
 function Dashboard() {
   const [shipments, setShipments] = useState([])
   const [regions, setRegions] = useState([])
+  const [warehouses, setWarehouses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -47,6 +49,28 @@ function Dashboard() {
     }
 
     fetchDashboardMetrics()
+  }, [])
+
+  // Fetch all warehouses capacity metrics from the backend on component mount
+  useEffect(() => {
+    const fetchWarehouses = async () => {
+      try {
+        let response = await api.get('/analytics/warehouses/')
+        if (response.data.length === 0) {
+          try {
+            await api.post('/analytics/warehouses/seed')
+            response = await api.get('/analytics/warehouses/')
+          } catch (seedErr) {
+            console.error("Failed to seed warehouses, proceeding with empty list:", seedErr)
+          }
+        }
+        setWarehouses(response.data)
+      } catch (err) {
+        console.error("Dashboard failed to retrieve warehouse metrics:", err)
+      }
+    }
+
+    fetchWarehouses()
   }, [])
 
   // Calculate live statistics from the fetched list
@@ -103,13 +127,39 @@ function Dashboard() {
         {/* Live Leaflet Map */}
         <LiveMap shipments={shipments} regions={regions} />
 
-        {/* Recharts Analytics Mock */}
-        <div className="bg-gray-850 border border-gray-800 rounded-lg p-8 flex flex-col items-center justify-center text-center min-h-[350px] shadow-sm">
-          <span className="text-5xl mb-4" role="img" aria-label="charts">📊</span>
-          <h2 className="text-lg font-bold text-white">Charts Coming Soon</h2>
-          <p className="text-gray-400 text-sm max-w-xs mt-2">
-            Recharts analytics representing delays over time, risk indexes, and transit metrics.
-          </p>
+        {/* Recharts Analytics: Warehouse Utilization BarChart */}
+        <div className="bg-gray-850 border border-gray-800 rounded-lg p-6 shadow-sm flex flex-col min-h-[350px]">
+          <h2 className="text-lg font-bold text-white mb-4">Warehouse Utilization %</h2>
+          <div className="w-full flex-1">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={warehouses} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="warehouse_name" stroke="#9CA3AF" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                <YAxis domain={[0, 100]} stroke="#9CA3AF" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1F2937', borderColor: '#374151', color: '#F9FAFB' }}
+                  formatter={(value) => [`${value.toFixed(1)}%`, 'Utilization']}
+                />
+                <Bar dataKey="utilization" radius={[4, 4, 0, 0]}>
+                  {warehouses.map((entry, index) => {
+                    let color = '#10B981' // Green (< 60)
+                    if (entry.utilization > 90) {
+                      color = '#EF4444' // Red (> 90)
+                    } else if (entry.utilization >= 60) {
+                      color = '#F59E0B' // Yellow (60-90)
+                    }
+                    return <Cell key={`cell-${index}`} fill={color} />
+                  })}
+                </Bar>
+                <ReferenceLine 
+                  y={90} 
+                  stroke="#EF4444" 
+                  strokeDasharray="3 3" 
+                  label={{ value: 'Critical', fill: '#EF4444', position: 'top', fontSize: 12 }} 
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>
