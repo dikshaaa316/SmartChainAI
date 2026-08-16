@@ -2,35 +2,52 @@
 // WEBSOCKET SERVICE CLIENT
 // ------------------------------------------------------------------------------
 // Subscribes to the backend WebSocket server for receiving real-time telemetry updates.
-// Usage: connectWebSocket((data) => { console.log(data); })
-export function connectWebSocket(onMessage) {
-  // Establish connection to the backend WebSocket endpoint
-  const ws = new WebSocket('ws://localhost:8000/ws')
+// Reconnects automatically on close with a 3-second retry.
+export function connectWebSocket(onMessage, onStatusChange) {
+  let ws = null
+  let isClosed = false
+  
+  const connect = () => {
+    if (isClosed) return;
+    
+    if (onStatusChange) onStatusChange('connecting')
+    
+    ws = new WebSocket('ws://localhost:8000/ws')
 
-  // Listen for message events
-  ws.onmessage = (event) => {
-    try {
-      // Parse the incoming JSON message body
-      const data = JSON.parse(event.data)
-      
-      // Dispatch the parsed payload to the handler callback
-      if (onMessage) {
-        onMessage(data)
+    ws.onopen = () => {
+      if (onStatusChange) onStatusChange('connected')
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (onMessage) onMessage(data)
+      } catch (error) {
+        console.error("Failed to parse WebSocket message data:", error)
       }
-    } catch (error) {
-      console.error("Failed to parse WebSocket message data:", error)
+    }
+
+    ws.onerror = (error) => {
+      console.error("WebSocket connection encountered an error:", error)
+    }
+
+    ws.onclose = () => {
+      if (isClosed) return;
+      if (onStatusChange) onStatusChange('reconnecting')
+      console.warn("WebSocket closed. Reconnecting in 3 seconds...")
+      setTimeout(() => {
+        connect()
+      }, 3000)
     }
   }
 
-  // Handle errors
-  ws.onerror = (error) => {
-    console.error("WebSocket connection encountered an error:", error)
-  }
+  connect()
 
-  // Handle closure
-  ws.onclose = () => {
-    console.warn("WebSocket connection closed. Retrying connection omitted in scaffold.")
+  // Return a cleanup function
+  return () => {
+    isClosed = true
+    if (ws) {
+      ws.close()
+    }
   }
-
-  return ws
 }

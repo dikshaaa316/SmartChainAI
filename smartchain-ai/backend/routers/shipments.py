@@ -1,10 +1,11 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from database import get_db
 from models import Shipment
 from schemas import ShipmentCreate, ShipmentResponse
+from core.eta_engine import calculate_eta
 
 # ------------------------------------------------------------------------------
 # ROUTER CONFIGURATION
@@ -20,7 +21,7 @@ router = APIRouter(
 # ------------------------------------------------------------------------------
 
 @router.post("/", response_model=ShipmentResponse)
-def create_shipment(shipment: ShipmentCreate, db: Session = Depends(get_db)):
+def create_shipment(shipment: ShipmentCreate, request: Request, db: Session = Depends(get_db)):
     """
     Create a new Shipment in the database.
     Accepts ShipmentCreate data, saves it, and returns the full ShipmentResponse object.
@@ -33,22 +34,30 @@ def create_shipment(shipment: ShipmentCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_shipment)
     
+    # Calculating current_eta at request time ensures we are always using the 
+    # most up-to-date ML model and dynamic region state without cron overhead.
+    db_shipment.original_eta = db_shipment.eta
+    db_shipment.current_eta = calculate_eta(db_shipment, db, request.app.state.model)
+    
     return db_shipment
 
 
 @router.get("/", response_model=List[ShipmentResponse])
-def read_shipments(db: Session = Depends(get_db)):
+def read_shipments(request: Request, db: Session = Depends(get_db)):
     """
     Retrieve all shipments from the database.
     Returns a list of ShipmentResponse objects.
     """
     # Query all shipments from the database table
     shipments = db.query(Shipment).all()
+    for s in shipments:
+        s.original_eta = s.eta
+        s.current_eta = calculate_eta(s, db, request.app.state.model)
     return shipments
 
 
 @router.get("/{shipment_id}", response_model=ShipmentResponse)
-def read_shipment(shipment_id: int, db: Session = Depends(get_db)):
+def read_shipment(shipment_id: int, request: Request, db: Session = Depends(get_db)):
     """
     Retrieve a single shipment by its ID.
     Raises a 404 HTTP Exception if the shipment is not found.
@@ -58,11 +67,13 @@ def read_shipment(shipment_id: int, db: Session = Depends(get_db)):
     if not db_shipment:
         raise HTTPException(status_code=404, detail="Shipment not found")
     
+    db_shipment.original_eta = db_shipment.eta
+    db_shipment.current_eta = calculate_eta(db_shipment, db, request.app.state.model)
     return db_shipment
 
 
 @router.put("/{shipment_id}", response_model=ShipmentResponse)
-def update_shipment(shipment_id: int, shipment: ShipmentCreate, db: Session = Depends(get_db)):
+def update_shipment(shipment_id: int, shipment: ShipmentCreate, request: Request, db: Session = Depends(get_db)):
     """
     Update all fields of a shipment by its ID.
     Raises a 404 HTTP Exception if the shipment does not exist.
@@ -84,6 +95,8 @@ def update_shipment(shipment_id: int, shipment: ShipmentCreate, db: Session = De
     db.commit()
     db.refresh(db_shipment)
     
+    db_shipment.original_eta = db_shipment.eta
+    db_shipment.current_eta = calculate_eta(db_shipment, db, request.app.state.model)
     return db_shipment
 
 

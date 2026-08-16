@@ -163,6 +163,26 @@ function Shipments() {
     }
   }
 
+  // ETA Renderer logic
+  const renderCurrentEta = (shipment) => {
+    // Attempt parsing as ISO date or valid date string
+    const orig = new Date(shipment.original_eta)
+    const curr = new Date(shipment.current_eta)
+    
+    // Check if parsing succeeded and current is later than original
+    if (!isNaN(orig) && !isNaN(curr) && curr > orig) {
+      return (
+        <span className="text-red-400 font-semibold flex items-center gap-1">
+          {shipment.current_eta}
+          <span className="text-xs bg-red-950/50 px-1.5 py-0.5 rounded border border-red-500/30">⚠ Delayed</span>
+        </span>
+      )
+    }
+    
+    // Otherwise return as green
+    return <span className="text-green-400 font-semibold">{shipment.current_eta || shipment.eta}</span>
+  }
+
   return (
     <div className="space-y-6">
       {/* Title Header */}
@@ -208,7 +228,8 @@ function Shipments() {
                   <th className="px-6 py-4">Destination</th>
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Distance (km)</th>
-                  <th className="px-6 py-4">ETA</th>
+                  <th className="px-6 py-4">Original ETA</th>
+                  <th className="px-6 py-4">Current ETA</th>
                   <th className="px-6 py-4">Delay %</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -221,7 +242,8 @@ function Shipments() {
                     <td className="px-6 py-4 text-gray-300">{shipment.destination}</td>
                     <td className="px-6 py-4">{renderStatusBadge(shipment.status)}</td>
                     <td className="px-6 py-4 font-mono">{shipment.distance}</td>
-                    <td className="px-6 py-4">{shipment.eta}</td>
+                    <td className="px-6 py-4 text-gray-400">{shipment.original_eta || shipment.eta}</td>
+                    <td className="px-6 py-4">{renderCurrentEta(shipment)}</td>
                     <td className="px-6 py-4 font-mono text-yellow-450 text-yellow-400 font-semibold">
                       {(shipment.delay_probability * 100).toFixed(1)}%
                     </td>

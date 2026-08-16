@@ -7,6 +7,22 @@ from core.risk_engine import RiskEngine
 from typing import List
 import joblib
 import numpy as np
+from pydantic import BaseModel
+
+class RegionHeatmapResponse(BaseModel):
+    region_name: str
+    latitude: float
+    longitude: float
+    risk_score: float
+
+CITY_COORDINATES = {
+    "Delhi NCR": (28.6139, 77.2090),
+    "Mumbai": (19.0760, 72.8777),
+    "Chennai": (13.0827, 80.2707),
+    "Kolkata": (22.5726, 88.3639),
+    "Bengaluru": (12.9716, 77.5946),
+    "Hyderabad": (17.3850, 78.4867),
+}
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -62,6 +78,20 @@ def create_region(region: RegionCreate, db: Session = Depends(get_db)):
 @router.get("/regions/", response_model=List[RegionResponse])
 def get_regions(db: Session = Depends(get_db)):
     return db.query(Region).all()
+
+@router.get("/regions", response_model=List[RegionHeatmapResponse])
+def get_heatmap_regions(db: Session = Depends(get_db)):
+    regions = db.query(Region).all()
+    result = []
+    for r in regions:
+        coords = CITY_COORDINATES.get(r.region_name, (0.0, 0.0))
+        result.append({
+            "region_name": r.region_name,
+            "latitude": coords[0],
+            "longitude": coords[1],
+            "risk_score": r.risk_score
+        })
+    return result
 
 # ------------------------------------
 # SEED REGIONS
@@ -137,12 +167,66 @@ def create_warehouse(warehouse: WarehouseCreate, db: Session = Depends(get_db)):
     return db_warehouse
 
 
-@router.get("/warehouses/", response_model=List[WarehouseResponse])
+@router.get("/warehouses", response_model=List[WarehouseResponse])
 def get_warehouses(db: Session = Depends(get_db)):
     """
-    Get list of all warehouses.
+    Get list of all warehouses with utilization rounded to 1 decimal.
     """
-    return db.query(Warehouse).all()
+    warehouses = db.query(Warehouse).all()
+    for w in warehouses:
+        w.utilization = round(w.utilization, 1)
+    return warehouses
+
+@router.post("/simulate/tick")
+async def simulate_tick(request: Request, db: Session = Depends(get_db)):
+    """
+    Simulates a time tick, updating warehouse loads randomly.
+    Broadcasts the new state (shipments, alerts, warehouses) via WebSockets.
+    """
+    import random
+    from core.alert_engine import generate_alerts
+    
+    warehouses = db.query(Warehouse).all()
+    for w in warehouses:
+        # random change between -50 and +150 load to push over 90%
+        change = random.randint(-50, 150)
+        new_load = max(0, min(w.capacity, w.current_load + change))
+        w.current_load = new_load
+        w.utilization = (new_load / w.capacity) * 100 if w.capacity > 0 else 0.0
+    
+    db.commit()
+    
+    # Consolidate all alert checks here
+    generate_alerts(db)
+    
+    # Fetch updated state utilizing existing logic to send over WS
+    from routers.shipments import read_shipments
+    shipments = read_shipments(request, db)
+    alerts = get_alerts(db)
+    warehouses = get_warehouses(db)
+    
+    # Broadcast via WS Manager
+    ws_manager = request.app.state.ws_manager
+    if ws_manager:
+        payload = {
+            "type": "update",
+            "shipments": [s.model_dump(mode="json") if hasattr(s, "model_dump") else s.__dict__ for s in shipments],
+            "alerts": [a.__dict__ for a in alerts],
+            "warehouses": [w.__dict__ for w in warehouses]
+        }
+        # Serialize fields like datetime safely
+        def safe_serialize(obj):
+            if isinstance(obj, dict):
+                return {k: (v.isoformat() if hasattr(v, 'isoformat') else v) for k, v in obj.items() if not k.startswith('_')}
+            return obj
+        
+        payload["shipments"] = [safe_serialize(s) for s in payload["shipments"]]
+        payload["alerts"] = [safe_serialize(a) for a in payload["alerts"]]
+        payload["warehouses"] = [safe_serialize(w) for w in payload["warehouses"]]
+        
+        await ws_manager.broadcast(payload)
+    
+    return {"message": "Simulation tick completed and broadcasted"}
 
 
 @router.post("/warehouses/seed")
@@ -204,6 +288,6 @@ def seed_warehouses(db: Session = Depends(get_db)):
 @router.get("/alerts/", response_model=List[AlertResponse])
 def get_alerts(db: Session = Depends(get_db)):
     """
-    Get list of all alerts.
+    Get list of all alerts sorted by created_at descending, most recent first, limited to 50.
     """
-    return db.query(Alert).all()
+    return db.query(Alert).order_by(Alert.created_at.desc()).limit(50).all()

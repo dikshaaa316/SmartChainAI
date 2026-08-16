@@ -25,6 +25,8 @@ class ShipmentResponse(ShipmentCreate):
     id: int
     status: str
     delay_probability: float
+    original_eta: str | None = None
+    current_eta: str | None = None
 
     # ConfigDict(from_attributes=True) allows Pydantic to read ORM models directly
     model_config = ConfigDict(from_attributes=True)
