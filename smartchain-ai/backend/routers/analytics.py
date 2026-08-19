@@ -99,12 +99,12 @@ def get_heatmap_regions(db: Session = Depends(get_db)):
 @router.post("/regions/seed")
 def seed_regions(db: Session = Depends(get_db)):
     regions = [
-        {"region_name": "Delhi NCR", "weather_score": 65, "traffic_score": 80, "warehouse_score": 70},
-        {"region_name": "Mumbai", "weather_score": 55, "traffic_score": 85, "warehouse_score": 60},
-        {"region_name": "Chennai", "weather_score": 70, "traffic_score": 60, "warehouse_score": 50},
-        {"region_name": "Kolkata", "weather_score": 75, "traffic_score": 65, "warehouse_score": 80},
-        {"region_name": "Bengaluru", "weather_score": 45, "traffic_score": 75, "warehouse_score": 55},
-        {"region_name": "Hyderabad", "weather_score": 50, "traffic_score": 60, "warehouse_score": 45},
+        {"region_name": "Delhi NCR", "weather_score": 65, "traffic_score": 80, "warehouse_score": 70, "latitude": 28.7041, "longitude": 77.1025},
+        {"region_name": "Mumbai", "weather_score": 55, "traffic_score": 85, "warehouse_score": 60, "latitude": 19.0760, "longitude": 72.8777},
+        {"region_name": "Chennai", "weather_score": 70, "traffic_score": 60, "warehouse_score": 50, "latitude": 13.0827, "longitude": 80.2707},
+        {"region_name": "Kolkata", "weather_score": 75, "traffic_score": 65, "warehouse_score": 80, "latitude": 22.5726, "longitude": 88.3639},
+        {"region_name": "Bengaluru", "weather_score": 45, "traffic_score": 75, "warehouse_score": 55, "latitude": 12.9716, "longitude": 77.5946},
+        {"region_name": "Hyderabad", "weather_score": 50, "traffic_score": 60, "warehouse_score": 45, "latitude": 17.3850, "longitude": 78.4867},
     ]
     added = []
     for r in regions:

@@ -14,7 +14,6 @@ class ShipmentCreate(BaseModel):
     current_lat: float
     current_lng: float
     distance: float
-    eta: str
 
 
 class ShipmentResponse(ShipmentCreate):
@@ -24,6 +23,7 @@ class ShipmentResponse(ShipmentCreate):
     """
     id: int
     status: str
+    eta: str
     delay_probability: float
     original_eta: str | None = None
     current_eta: str | None = None
@@ -52,6 +52,8 @@ class RegionResponse(RegionCreate):
     """
     id: int
     risk_score: float
+    latitude: float | None = None
+    longitude: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

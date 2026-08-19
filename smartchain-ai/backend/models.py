@@ -39,6 +39,8 @@ class Region(Base):
     traffic_score = Column(Float, nullable=False)
     warehouse_score = Column(Float, nullable=False)
     risk_score = Column(Float, default=0.0, nullable=False)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
 
 
 # ------------------------------------------------------------------------------

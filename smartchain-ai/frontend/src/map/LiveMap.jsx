@@ -10,14 +10,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
-const CITY_COORDINATES = {
-  "Delhi NCR": [28.6139, 77.2090],
-  "Mumbai": [19.0760, 72.8777],
-  "Chennai": [13.0827, 80.2707],
-  "Kolkata": [22.5726, 88.3639],
-  "Bengaluru": [12.9716, 77.5946],
-  "Hyderabad": [17.3850, 78.4867]
-}
 
 const getRiskColor = (score) => {
   if (score < 40) return '#10B981' // Green (Emerald)
@@ -53,8 +45,8 @@ function LiveMap({ shipments = [], regions = [] }) {
 
     // Add risk circles first so shipment markers render on top
     regions.forEach(region => {
-      const coords = CITY_COORDINATES[region.region_name]
-      if (coords) {
+      if (region.latitude && region.longitude) {
+        const coords = [region.latitude, region.longitude]
         const color = getRiskColor(region.risk_score)
         const level = getRiskLevel(region.risk_score)
         L.circle(coords, {

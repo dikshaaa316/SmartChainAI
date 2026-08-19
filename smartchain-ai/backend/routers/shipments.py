@@ -27,7 +27,33 @@ def create_shipment(shipment: ShipmentCreate, request: Request, db: Session = De
     Accepts ShipmentCreate data, saves it, and returns the full ShipmentResponse object.
     """
     # Create the database ORM instance using fields from the schema
-    db_shipment = Shipment(**shipment.model_dump())
+    db_shipment_data = shipment.model_dump()
+    
+    # Auto-calculate ETA (distance / 40 km/h)
+    eta_hours = shipment.distance / 40
+    db_shipment_data["eta"] = f"Estimated in {int(eta_hours)} hours"
+
+    # Auto-calculate delay probability using the ML model and average region risk
+    from models import Region
+    import numpy as np
+    regions = db.query(Region).all()
+    if regions:
+        weather_avg = sum(r.weather_score for r in regions) / len(regions)
+        traffic_avg = sum(r.traffic_score for r in regions) / len(regions)
+        warehouse_avg = sum(r.warehouse_score for r in regions) / len(regions)
+    else:
+        weather_avg, traffic_avg, warehouse_avg = 50.0, 50.0, 50.0
+
+    delay_prob = 0.0
+    if hasattr(request.app.state, 'model') and request.app.state.model:
+        features = np.array([[shipment.distance, weather_avg, traffic_avg, warehouse_avg]])
+        try:
+            delay_prob = float(request.app.state.model.predict_proba(features)[0][1])
+        except Exception:
+            delay_prob = 0.0
+            
+    db_shipment_data["delay_probability"] = delay_prob
+    db_shipment = Shipment(**db_shipment_data)
     
     # Save the instance to the database
     db.add(db_shipment)
@@ -89,7 +115,7 @@ def update_shipment(shipment_id: int, shipment: ShipmentCreate, request: Request
     db_shipment.current_lat = shipment.current_lat
     db_shipment.current_lng = shipment.current_lng
     db_shipment.distance = shipment.distance
-    db_shipment.eta = shipment.eta
+    db_shipment.eta = f"Estimated in {int(shipment.distance / 40)} hours"
     
     # Commit changes to database and refresh the object
     db.commit()

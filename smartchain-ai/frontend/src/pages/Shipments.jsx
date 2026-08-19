@@ -21,8 +21,7 @@ function Shipments() {
     destination: '',
     current_lat: '',
     current_lng: '',
-    distance: '',
-    eta: ''
+    distance: ''
   })
 
   // Tracker for determining if form is in edit mode (stores active shipment ID, or null)
@@ -67,8 +66,7 @@ function Shipments() {
       destination: form.destination,
       current_lat: parseFloat(form.current_lat),
       current_lng: parseFloat(form.current_lng),
-      distance: parseFloat(form.distance),
-      eta: form.eta
+      distance: parseFloat(form.distance)
     }
 
     try {
@@ -87,8 +85,8 @@ function Shipments() {
         destination: '',
         current_lat: '',
         current_lng: '',
-        distance: '',
-        eta: ''
+        current_lng: '',
+        distance: ''
       })
 
       // Refresh list
@@ -107,8 +105,7 @@ function Shipments() {
       destination: shipment.destination,
       current_lat: shipment.current_lat,
       current_lng: shipment.current_lng,
-      distance: shipment.distance,
-      eta: shipment.eta
+      distance: shipment.distance
     })
   }
 
@@ -120,8 +117,8 @@ function Shipments() {
       destination: '',
       current_lat: '',
       current_lng: '',
-      distance: '',
-      eta: ''
+      current_lng: '',
+      distance: ''
     })
   }
 
@@ -350,20 +347,6 @@ function Shipments() {
                 onChange={handleInputChange}
                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
                 placeholder="Travel distance"
-              />
-            </div>
-
-            {/* ETA Input */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">ETA</label>
-              <input
-                type="text"
-                name="eta"
-                required
-                value={form.eta}
-                onChange={handleInputChange}
-                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
-                placeholder="Estimated Time of Arrival"
               />
             </div>
           </div>
